@@ -6,6 +6,8 @@ Requirements:
   
 - [x] Generate spendable balances in the Miner wallet. How many blocks needs to be mined?
 
+- [x] Load Trader wallet and generate a new address
+
 - [ ] Send 20 BTC from Miner to Trader
 
 - [ ] Check transaction in mempool

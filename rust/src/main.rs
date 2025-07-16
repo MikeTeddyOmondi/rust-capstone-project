@@ -134,6 +134,27 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // Load Trader wallet and generate a new address
     // ___________________________________________________________________________________
 
+    // Switch to Trader wallet context
+    let trader_client = Client::new(
+        &format!("{}/wallet/{}", RPC_URL, trader_wallet_name),
+        Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
+    )?;
+
+    // Create a receiving address labeled "Received" from Trader wallet
+    let trader_address = trader_client.get_new_address(
+        Some("Received"),
+        Some(bitcoincore_rpc::json::AddressType::Bech32),
+    )?;
+    let trader_receive_address = trader_address
+        .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
+        .map_err(|e| {
+            bitcoincore_rpc::Error::ReturnedError(format!(
+                "Failed to create trader address: {}",
+                e.to_string()
+            ))
+        })?;
+    println!("Trader address (Received): {}", trader_receive_address);
+
     // Send 20 BTC from Miner to Trader
 
     // Check transaction in mempool
