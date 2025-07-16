@@ -8,7 +8,7 @@ Requirements:
 
 - [x] Load Trader wallet and generate a new address
 
-- [ ] Send 20 BTC from Miner to Trader
+- [x] Send 20 BTC from Miner to Trader
 
 - [ ] Check transaction in mempool
 

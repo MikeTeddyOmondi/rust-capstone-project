@@ -155,7 +155,23 @@ fn main() -> bitcoincore_rpc::Result<()> {
         })?;
     println!("Trader address (Received): {}", trader_receive_address);
 
+    // ___________________________________________________________________________________
     // Send 20 BTC from Miner to Trader
+    // ___________________________________________________________________________________
+    
+    // Send a transaction paying 20 BTC from Miner wallet to Trader's wallet
+    let send_amount = Amount::from_btc(20.0).unwrap();
+    let txid = miner_client.send_to_address(
+        &trader_receive_address,
+        send_amount,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )?;
+    println!("Transaction ID: {}", txid);
 
     // Check transaction in mempool
 
