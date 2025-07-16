@@ -12,7 +12,7 @@ Requirements:
 
 - [x] Check transaction in mempool
 
-- [ ] Mine 1 block to confirm the transaction
+- [x] Mine 1 block to confirm the transaction
 
 - [ ] Extract all required transaction details
 
