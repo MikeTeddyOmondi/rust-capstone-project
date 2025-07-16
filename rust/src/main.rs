@@ -158,7 +158,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // ___________________________________________________________________________________
     // Send 20 BTC from Miner to Trader
     // ___________________________________________________________________________________
-    
+
     // Send a transaction paying 20 BTC from Miner wallet to Trader's wallet
     let send_amount = Amount::from_btc(20.0).unwrap();
     let txid = miner_client.send_to_address(
@@ -173,7 +173,13 @@ fn main() -> bitcoincore_rpc::Result<()> {
     )?;
     println!("Transaction ID: {}", txid);
 
+    // ___________________________________________________________________________________
     // Check transaction in mempool
+    // ___________________________________________________________________________________
+
+    // Fetch the unconfirmed transaction from the node's mempool
+    let mempool_entry = rpc.get_mempool_entry(&txid)?;
+    println!("Mempool entry: {:?}", mempool_entry);
 
     // Mine 1 block to confirm the transaction
 

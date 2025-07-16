@@ -10,7 +10,7 @@ Requirements:
 
 - [x] Send 20 BTC from Miner to Trader
 
-- [ ] Check transaction in mempool
+- [x] Check transaction in mempool
 
 - [ ] Mine 1 block to confirm the transaction
 
