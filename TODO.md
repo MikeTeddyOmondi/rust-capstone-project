@@ -16,4 +16,5 @@ Requirements:
 
 - [x] Extract all required transaction details
 
-- [x] Write the data to ../out.txt in the specified format given in readme.md
+- [x] Write the data to ./out.txt in the specified format given in readme.md
+
