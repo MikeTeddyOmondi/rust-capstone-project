@@ -14,6 +14,6 @@ Requirements:
 
 - [x] Mine 1 block to confirm the transaction
 
-- [ ] Extract all required transaction details
+- [x] Extract all required transaction details
 
-- [ ] Write the data to ../out.txt in the specified format given in readme.md
+- [x] Write the data to ../out.txt in the specified format given in readme.md

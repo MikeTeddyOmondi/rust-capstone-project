@@ -1,7 +1,7 @@
 #![allow(unused)]
 use bitcoin::hex::DisplayHex;
-use bitcoincore_rpc::bitcoin::Amount;
-use bitcoincore_rpc::{Auth, Client, RpcApi};
+use bitcoincore_rpc::bitcoin::{Amount, SignedAmount};
+use bitcoincore_rpc::{Auth, Client, RawTx, RpcApi};
 use serde::Deserialize;
 use serde_json::json;
 use std::fs::File;
@@ -102,6 +102,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
         Some(bitcoincore_rpc::json::AddressType::Bech32),
     )?;
     let mining_reward_address = miner_address
+        .clone()
         .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
         .map_err(|e| {
             bitcoincore_rpc::Error::ReturnedError(format!(
@@ -179,7 +180,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Fetch the unconfirmed transaction from the node's mempool
     let mempool_entry = rpc.get_mempool_entry(&txid)?;
-    println!("Mempool entry: {:#?}", mempool_entry);
+    println!("Mempool entry: {:?}", mempool_entry);
 
     // ____________________________________________________________________________________
     // Mine 1 block to confirm the transaction
@@ -190,9 +191,164 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let block_hash = confirmation_block[0];
     println!("Transaction confirmed in block: {}", block_hash);
 
+    // ____________________________________________________________________________________
     // Extract all required transaction details
+    // ____________________________________________________________________________________
 
+    // Get the raw transaction first
+    let miner_tx = miner_client.get_raw_transaction(&txid, None)?;
+
+    // Miner's Change Address
+    let miner_raw_tx = miner_client.decode_raw_transaction(&miner_tx, Some(true))?;
+
+    println!("Transaction outputs:");
+    for (i, vout) in miner_raw_tx.vout.iter().enumerate() {
+        println!("Output {}: {:?}", i, vout.script_pub_key.address);
+    }
+    println!("Trader address: {}", trader_receive_address);
+
+    // Handle the case where there might be no change output
+    let miner_vout_option = miner_raw_tx.vout.iter().find(|v| {
+        if let Some(addr) = &v.script_pub_key.address {
+            addr != &trader_receive_address
+        } else {
+            false
+        }
+    });
+
+    // Get the raw transaction
+    let raw_tx = miner_client.get_raw_transaction(&txid, None)?;
+    let decoded_tx = miner_client.decode_raw_transaction(&raw_tx, Some(true))?;
+
+    // Find change output by comparing against trader address
+    let trader_addr_str = trader_receive_address.to_string();
+
+    let mut change_address = mining_reward_address.clone(); // fallback
+    let mut change_amount = 0.0;
+
+    // Look through all outputs to find the change
+    for vout in &decoded_tx.vout {
+        if let Some(addr) = &vout.script_pub_key.address {
+            // Convert address to string for comparison
+            let output_addr = addr
+                .clone()
+                .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
+                .map_err(|e| {
+                    bitcoincore_rpc::Error::ReturnedError(format!(
+                        "Failed to process output address: {}",
+                        e.to_string()
+                    ))
+                })?;
+
+            let output_addr_str = output_addr.to_string();
+            println!(
+                "Checking output: {} BTC to {}",
+                vout.value.to_btc(),
+                output_addr_str
+            );
+
+            // If this output is NOT going to the trader, it's the change
+            if output_addr_str != trader_addr_str {
+                change_address = output_addr;
+                change_amount = vout.value.to_btc();
+                println!(
+                    "Found change output: {} BTC to {}",
+                    change_amount, change_address
+                );
+                break;
+            }
+        }
+    }
+
+    // If no change was found, there might be an issue with the transaction
+    if change_amount == 0.0 {
+        println!("Warning: No change output found. This might indicate:");
+        println!("1. The input amount exactly equals output + fees");
+        println!("2. There's an issue with address comparison");
+        println!("3. The transaction structure is different than expected");
+
+        // Let's examine all outputs more carefully
+        println!("All transaction outputs:");
+        for (i, vout) in decoded_tx.vout.iter().enumerate() {
+            println!("  Output {}: {} BTC", i, vout.value.to_btc());
+            if let Some(addr) = &vout.script_pub_key.address {
+                let addr_str = addr
+                    .clone()
+                    .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
+                    .map_err(|e| {
+                        bitcoincore_rpc::Error::ReturnedError(format!(
+                            "Address error: {}",
+                            e.to_string()
+                        ))
+                    })?
+                    .to_string();
+                println!("    Address: {}", addr_str);
+                println!("    Is trader address? {}", addr_str == trader_addr_str);
+            }
+        }
+    }
+
+    // let change_address = miner_vout
+    //     .clone()
+    //     .script_pub_key
+    //     .address
+    //     .unwrap()
+    //     .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
+    //     .unwrap();
+
+    // // 7. Miner Change Amount
+    // let change_amount = miner_vout.value.to_btc();
+
+    // Get transaction details using the miner client (since it sent the transaction)
+    let tx_details = miner_client.get_transaction(&txid, Some(true))?;
+    let raw_tx_info = rpc.get_raw_transaction_info(&txid, None)?;
+    let block_info = rpc.get_block(&block_hash)?;
+    let block_height = rpc.get_block_count()?;
+
+    // Extract input information
+    let input_amount = tx_details
+        .details
+        .iter()
+        .find(|d| d.category == bitcoincore_rpc::json::GetTransactionResultDetailCategory::Send)
+        .map(|d| d.amount.to_btc().abs())
+        .unwrap_or(0.0);
+
+    let output_amount = 20.0; // We sent 20 BTC
+    let fee = tx_details.fee.unwrap_or(SignedAmount::ZERO).to_btc().abs();
+
+    // Convert trader address to string for comparison
+    let trader_addr_str = trader_receive_address.to_string();
+
+    println!(
+        "Looking for change address (trader address: {})",
+        trader_addr_str
+    );
+
+    println!("Change address: {}", change_address);
+
+    // ____________________________________________________________________________________
     // Write the data to ../out.txt in the specified format given in readme.md
+    // ____________________________________________________________________________________
+
+    // Format the data to the expected format
+    let output_content = format!(
+        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+        txid,
+        mining_reward_address,
+        input_amount,
+        trader_receive_address,
+        output_amount,
+        change_address,
+        change_amount,
+        fee,
+        block_height,
+        block_hash
+    );
+    println!("\nOutput content:\n{}", output_content);
+
+    let mut file = File::create("../out.txt")?;
+    file.write_all(output_content.as_bytes())?;
+    println!("Transaction details written to out.txt");
 
     Ok(())
 }
