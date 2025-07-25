@@ -43,10 +43,11 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Get blockchain info
     let blockchain_info = rpc.get_blockchain_info()?;
-    println!("Blockchain Info: {:?}", blockchain_info);
+    println!("Blockchain Info: {blockchain_info:?}");
 
     // ___________________________________________________________________________________
-    // Create/Load the wallets, named 'Miner' and 'Trader'. Have logic to optionally create/load them if they do not exist or not loaded already.
+    // Create/Load the wallets, named 'Miner' and 'Trader'. Have logic to optionally
+    // create/load them if they do not exist or not loaded already.
     // ___________________________________________________________________________________
 
     let miner_wallet_name = "Miner";
@@ -92,7 +93,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Switch to Miner wallet context
     let miner_client = Client::new(
-        &format!("{}/wallet/{}", RPC_URL, miner_wallet_name),
+        &format!("{RPC_URL}/wallet/{miner_wallet_name}"),
         Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
     )?;
 
@@ -105,13 +106,10 @@ fn main() -> bitcoincore_rpc::Result<()> {
         .clone()
         .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
         .map_err(|e| {
-            bitcoincore_rpc::Error::ReturnedError(format!(
-                "Failed to create miner address: {}",
-                e.to_string()
-            ))
+            bitcoincore_rpc::Error::ReturnedError(format!("Failed to create miner address: {e}"))
         })?;
 
-    println!("Miner address (Mining Reward): {}", mining_reward_address);
+    println!("Miner address (Mining Reward): {mining_reward_address}");
 
     // Mine new blocks to this address until you get positive wallet balance
     // In regtest, coinbase rewards mature after 100 blocks, so we need to mine 101 blocks
@@ -119,7 +117,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let blocks_to_generate = 101;
     let block_hashes =
         miner_client.generate_to_address(blocks_to_generate, &mining_reward_address)?;
-    println!("Generated {} blocks to miner address", blocks_to_generate);
+    println!("Generated {blocks_to_generate} blocks to miner address");
 
     // Comment: Wallet balance for block rewards behaves this way because in Bitcoin,
     // coinbase transactions (block rewards) have a maturity period of 100 blocks in regtest mode.
@@ -137,7 +135,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Switch to Trader wallet context
     let trader_client = Client::new(
-        &format!("{}/wallet/{}", RPC_URL, trader_wallet_name),
+        &format!("{RPC_URL}/wallet/{trader_wallet_name}"),
         Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
     )?;
 
@@ -147,14 +145,12 @@ fn main() -> bitcoincore_rpc::Result<()> {
         Some(bitcoincore_rpc::json::AddressType::Bech32),
     )?;
     let trader_receive_address = trader_address
+        .clone()
         .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
         .map_err(|e| {
-            bitcoincore_rpc::Error::ReturnedError(format!(
-                "Failed to create trader address: {}",
-                e.to_string()
-            ))
+            bitcoincore_rpc::Error::ReturnedError(format!("Failed to create trader address: {e}"))
         })?;
-    println!("Trader address (Received): {}", trader_receive_address);
+    println!("Trader address (Received): {trader_receive_address}");
 
     // ___________________________________________________________________________________
     // Send 20 BTC from Miner to Trader
@@ -172,7 +168,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
         None,
         None,
     )?;
-    println!("Transaction ID: {}", txid);
+    println!("Transaction ID: {txid}");
 
     // ___________________________________________________________________________________
     // Check transaction in mempool
@@ -180,7 +176,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Fetch the unconfirmed transaction from the node's mempool
     let mempool_entry = rpc.get_mempool_entry(&txid)?;
-    println!("Mempool entry: {:?}", mempool_entry);
+    println!("Mempool entry: {mempool_entry:?}");
 
     // ____________________________________________________________________________________
     // Mine 1 block to confirm the transaction
@@ -189,7 +185,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // Confirm the transaction by mining 1 block
     let confirmation_block = rpc.generate_to_address(1, &mining_reward_address)?;
     let block_hash = confirmation_block[0];
-    println!("Transaction confirmed in block: {}", block_hash);
+    println!("Transaction confirmed in block: {block_hash}");
 
     // ____________________________________________________________________________________
     // Extract all required transaction details
@@ -205,7 +201,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
     for (i, vout) in miner_raw_tx.vout.iter().enumerate() {
         println!("Output {}: {:?}", i, vout.script_pub_key.address);
     }
-    println!("Trader address: {}", trader_receive_address);
+    println!("Trader address: {trader_receive_address}");
 
     // Handle the case where there might be no change output
     let miner_vout_option = miner_raw_tx.vout.iter().find(|v| {
@@ -235,26 +231,21 @@ fn main() -> bitcoincore_rpc::Result<()> {
                 .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
                 .map_err(|e| {
                     bitcoincore_rpc::Error::ReturnedError(format!(
-                        "Failed to process output address: {}",
-                        e.to_string()
+                        "Failed to process output address: {e}"
                     ))
                 })?;
 
             let output_addr_str = output_addr.to_string();
             println!(
-                "Checking output: {} BTC to {}",
-                vout.value.to_btc(),
-                output_addr_str
+                "Checking output: {} BTC to {output_addr_str}",
+                vout.value.to_btc()
             );
 
             // If this output is NOT going to the trader, it's the change
             if output_addr_str != trader_addr_str {
                 change_address = output_addr;
                 change_amount = vout.value.to_btc();
-                println!(
-                    "Found change output: {} BTC to {}",
-                    change_amount, change_address
-                );
+                println!("Found change output: {change_amount} BTC to {change_address}");
                 break;
             }
         }
@@ -276,28 +267,14 @@ fn main() -> bitcoincore_rpc::Result<()> {
                     .clone()
                     .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
                     .map_err(|e| {
-                        bitcoincore_rpc::Error::ReturnedError(format!(
-                            "Address error: {}",
-                            e.to_string()
-                        ))
+                        bitcoincore_rpc::Error::ReturnedError(format!("Address error: {e}"))
                     })?
                     .to_string();
-                println!("    Address: {}", addr_str);
+                println!("    Address: {addr_str}");
                 println!("    Is trader address? {}", addr_str == trader_addr_str);
             }
         }
     }
-
-    // let change_address = miner_vout
-    //     .clone()
-    //     .script_pub_key
-    //     .address
-    //     .unwrap()
-    //     .require_network(bitcoincore_rpc::bitcoin::Network::Regtest)
-    //     .unwrap();
-
-    // // 7. Miner Change Amount
-    // let change_amount = miner_vout.value.to_btc();
 
     // Get transaction details using the miner client (since it sent the transaction)
     let tx_details = miner_client.get_transaction(&txid, Some(true))?;
@@ -319,12 +296,29 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // Convert trader address to string for comparison
     let trader_addr_str = trader_receive_address.to_string();
 
-    println!(
-        "Looking for change address (trader address: {})",
-        trader_addr_str
-    );
+    // Extract output info
+    let tx_details = miner_client.get_transaction(&txid, Some(true))?;
+    let tx = tx_details.transaction().unwrap(); // Fully decoded transaction
+    // let fee = tx_details
+    //     .fee
+    //     .unwrap_or(SignedAmount::from_btc(0.0).unwrap());
+    let fee = tx_details.fee.unwrap_or(SignedAmount::ZERO).to_btc().abs();
 
-    println!("Change address: {}", change_address);
+    let outputs = &tx.output;
+    let mut trader_output = None;
+    let mut change_output = None;
+
+    for out in outputs {
+        let out_address = bitcoincore_rpc::bitcoin::Address::from_script(&out.script_pubkey, bitcoincore_rpc::bitcoin::Network::Regtest).unwrap();
+        if out_address == trader_address {
+            trader_output = Some((out_address, out.value));
+        } else {
+            change_output = Some((out_address, out.value));
+        }
+    }
+
+    println!("Looking for change address (trader address: {trader_addr_str})");
+    println!("Change address: {change_address}");
 
     // ____________________________________________________________________________________
     // Write the data to ../out.txt in the specified format given in readme.md
@@ -332,23 +326,14 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Format the data to the expected format
     let output_content = format!(
-        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
-        txid,
-        mining_reward_address,
-        input_amount,
-        trader_receive_address,
-        output_amount,
-        change_address,
-        change_amount,
-        fee,
-        block_height,
-        block_hash
+        "{txid}\n{mining_reward_address}\n{input_amount}\n{trader_receive_address}\n{output_amount}\n{change_address}\n{change_amount}\n{fee}\n{block_height}\n{block_hash}"
+        
     );
-    println!("\nOutput content:\n{}", output_content);
+    println!("\nOutput content:\n{output_content}");
 
     let mut file = File::create("../out.txt")?;
     file.write_all(output_content.as_bytes())?;
-    println!("Transaction details written to out.txt");
+    println!("\nTransaction details written to out.txt");
 
     Ok(())
 }
