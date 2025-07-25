@@ -299,9 +299,9 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // Extract output info
     let tx_details = miner_client.get_transaction(&txid, Some(true))?;
     let tx = tx_details.transaction().unwrap(); // Fully decoded transaction
-    // let fee = tx_details
-    //     .fee
-    //     .unwrap_or(SignedAmount::from_btc(0.0).unwrap());
+                                                // let fee = tx_details
+                                                //     .fee
+                                                //     .unwrap_or(SignedAmount::from_btc(0.0).unwrap());
     let fee = tx_details.fee.unwrap_or(SignedAmount::ZERO).to_btc().abs();
 
     let outputs = &tx.output;
@@ -309,7 +309,11 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let mut change_output = None;
 
     for out in outputs {
-        let out_address = bitcoincore_rpc::bitcoin::Address::from_script(&out.script_pubkey, bitcoincore_rpc::bitcoin::Network::Regtest).unwrap();
+        let out_address = bitcoincore_rpc::bitcoin::Address::from_script(
+            &out.script_pubkey,
+            bitcoincore_rpc::bitcoin::Network::Regtest,
+        )
+        .unwrap();
         if out_address == trader_address {
             trader_output = Some((out_address, out.value));
         } else {
@@ -327,7 +331,6 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // Format the data to the expected format
     let output_content = format!(
         "{txid}\n{mining_reward_address}\n{input_amount}\n{trader_receive_address}\n{output_amount}\n{change_address}\n{change_amount}\n{fee}\n{block_height}\n{block_hash}"
-        
     );
     println!("\nOutput content:\n{output_content}");
 
